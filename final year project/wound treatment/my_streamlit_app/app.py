@@ -7,40 +7,42 @@ import csv
 import os
 
 # ==============================
-# SAFE PATH CONFIG (IMPORTANT)
+# 🔥 BASE PATH FIX (IMPORTANT)
 # ==============================
-DATA_DIR = "data"
-CSV_PATH = os.path.join(DATA_DIR, "model_for_com.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
 
-MODEL_1 = os.path.join(DATA_DIR, "xgb_class1_1.pkl")
-MODEL_2 = os.path.join(DATA_DIR, "xgb_class2_1.pkl")
-MODEL_3 = os.path.join(DATA_DIR, "xgb_class3_1.pkl")
-MODEL_4 = os.path.join(DATA_DIR, "xgb_class1_3.pkl")
+def path(file_name):
+    return os.path.join(DATA_DIR, file_name)
 
 
 # ==============================
-# SAFE LOADERS (NO MORE CRASHES)
+# SAFE LOADERS
 # ==============================
 
-def safe_open_csv_header():
-    if not os.path.exists(CSV_PATH):
-        st.error(f"Missing file: {CSV_PATH}")
+def load_csv_header():
+    file_path = path("model_for_com.csv")
+
+    if not os.path.exists(file_path):
+        st.error(f"Missing file: {file_path}")
         st.stop()
 
-    with open(CSV_PATH, "r") as f:
+    with open(file_path, "r") as f:
         return list(csv.reader(f))[0]
 
 
-def safe_pickle(path):
-    if not os.path.exists(path):
-        st.error(f"Missing model file: {path}")
+def load_pickle(file_name):
+    file_path = path(file_name)
+
+    if not os.path.exists(file_path):
+        st.error(f"Missing model: {file_path}")
         st.stop()
 
-    return pickle.load(open(path, "rb"))
+    return pickle.load(open(file_path, "rb"))
 
 
 # ==============================
-# CORE LOGIC
+# CORE LOGIC (UNCHANGED)
 # ==============================
 
 def replacement(store_list):
@@ -51,7 +53,7 @@ def replacement(store_list):
 
     i = 0
     while i < len(store):
-        if i > 19 and i < 26:
+        if 19 < i < 26:
             if not txt_flag[0]:
                 store[i + var] = "@:V" + str(txt_flag[1]) + " fibrinous"
 
@@ -82,7 +84,7 @@ def verify_p1(data_array, dat1):
     d_list = dat1.to_numpy().tolist()
     outside = 0
 
-    for i in range(0, length - 1):
+    for i in range(length - 1):
         try:
             val = d_list[0][i + 1]
             var = round(((val - float(data_array[0][i])) / val) * 100, 3)
@@ -103,12 +105,12 @@ def verify_p1(data_array, dat1):
 # ==============================
 
 def class1_1(X):
-    clf = safe_pickle(MODEL_1)
+    clf = load_pickle("xgb_class1_1.pkl")
     return clf.predict_proba(X), clf.predict(X)
 
 
 def class2_1(X):
-    clf = safe_pickle(MODEL_2)
+    clf = load_pickle("xgb_class2_1.pkl")
     return clf.predict_proba(X), clf.predict(X)
 
 
@@ -123,7 +125,7 @@ def VoteClass_1(treatment, Out, out_pred):
 
     X_final = dat2.iloc[:, 1:]
 
-    clf = safe_pickle(MODEL_3)
+    clf = load_pickle("xgb_class3_1.pkl")
 
     y_pred = clf.predict(X_final)
     pred_prob = clf.predict_proba(X_final)
@@ -139,12 +141,11 @@ def VoteClass_1(treatment, Out, out_pred):
 
 
 # ==============================
-# STREAMLIT APP
+# STREAMLIT UI
 # ==============================
 
 st.set_page_config(page_title="Wound Healing AI", layout="wide")
 
-# session state
 if "auth" not in st.session_state:
     st.session_state.auth = False
 if "post" not in st.session_state:
@@ -175,7 +176,7 @@ if not st.session_state.auth:
 
 
 # ==============================
-# MAIN APP
+# APP FLOW
 # ==============================
 
 else:
@@ -183,7 +184,7 @@ else:
         st.title("Data Input Mode")
 
         if st.button("Manual Input"):
-            names = safe_open_csv_header()
+            names = load_csv_header()
             st.session_state.store = replacement(names)
             st.session_state.post = 1
             st.rerun()
@@ -207,7 +208,7 @@ else:
         if st.button("Continue"):
             num = float(val) if val else float("nan")
 
-            names = safe_open_csv_header()
+            names = load_csv_header()
 
             try:
                 offset = int(st.session_state.store[0])
@@ -224,14 +225,14 @@ else:
     else:
         st.title("Predictive Outcome")
 
-        ref = np.array(list(csv.reader(open(CSV_PATH))))[1:, 1:].tolist()
+        ref = np.array(list(csv.reader(open(path("model_for_com.csv")))))[1:, 1:].tolist()
         penalty, failed = verify_p1(ref, st.session_state.dat1)
 
         if failed:
-            st.warning(f"Warning: deviation detected ({round(penalty, 2)}%)")
+            st.warning(f"Deviation detected: {round(penalty, 2)}%")
 
         if st.button("Run XGBoost Analysis"):
-            clf = safe_pickle(MODEL_4)
+            clf = load_pickle("xgb_class1_3.pkl")
 
             X = st.session_state.dat1.iloc[:, 1:].fillna(0)
 
