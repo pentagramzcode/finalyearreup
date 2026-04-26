@@ -126,7 +126,7 @@ else:
     if st.session_state.post == -2:
         st.title("Data Input Mode")
         if st.button("Manual Input"):
-            with open("data/model for com.csv", 'r') as f:
+            with open("data/model_for_com.csv", 'r') as f:
                 names = list(csv.reader(f))[0]
             st.session_state.store = replacement(names)
             st.session_state.post = 1
@@ -149,7 +149,7 @@ else:
         if st.button("Continue"):
             num = float(val) if val else float('nan')
             
-            with open("data/model for com.csv", 'r') as f:
+            with open("data/model_for_com.csv", 'r') as f:
                 names = list(csv.reader(f))[0]
             
             # --- SAFE INDEXING LOGIC ---
