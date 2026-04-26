@@ -167,7 +167,7 @@ else:
 
     else:
         st.title("Predictive Outcome")
-        with open("data/model for com.csv", 'r') as f:
+        with open("data/model_for_com.csv", 'r') as f:
             ref = np.array(list(csv.reader(f)))[1:, 1:].tolist()
         
         penalty, failed = verify_p1(ref, st.session_state.dat1)
