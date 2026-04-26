@@ -4,24 +4,43 @@ import numpy as np
 import xgboost as xgb
 import pickle
 import csv
-import math
 import os
 
 # ==============================
-# SAFE FILE PATH (IMPORTANT FIX)
+# SAFE PATH CONFIG (IMPORTANT)
 # ==============================
-CSV_PATH = os.path.join("data", "model_for_com.csv")
+DATA_DIR = "data"
+CSV_PATH = os.path.join(DATA_DIR, "model_for_com.csv")
 
-def load_csv_header():
+MODEL_1 = os.path.join(DATA_DIR, "xgb_class1_1.pkl")
+MODEL_2 = os.path.join(DATA_DIR, "xgb_class2_1.pkl")
+MODEL_3 = os.path.join(DATA_DIR, "xgb_class3_1.pkl")
+MODEL_4 = os.path.join(DATA_DIR, "xgb_class1_3.pkl")
+
+
+# ==============================
+# SAFE LOADERS (NO MORE CRASHES)
+# ==============================
+
+def safe_open_csv_header():
     if not os.path.exists(CSV_PATH):
-        st.error(f"Missing file: {CSV_PATH}. Please check GitHub upload.")
+        st.error(f"Missing file: {CSV_PATH}")
         st.stop()
 
     with open(CSV_PATH, "r") as f:
         return list(csv.reader(f))[0]
 
+
+def safe_pickle(path):
+    if not os.path.exists(path):
+        st.error(f"Missing model file: {path}")
+        st.stop()
+
+    return pickle.load(open(path, "rb"))
+
+
 # ==============================
-# 1. CORE MATH & DATA LOGIC
+# CORE LOGIC
 # ==============================
 
 def replacement(store_list):
@@ -78,37 +97,36 @@ def verify_p1(data_array, dat1):
 
     return outside, (outside > 0.13)
 
+
 # ==============================
-# 2. MODEL FUNCTIONS
+# MODELS
 # ==============================
 
-def class1_1(X_test):
-    clf = pickle.load(open("data/xgb_class1_1.pkl", "rb"))
-    return clf.predict_proba(X_test, iteration_range=(0, 100)), clf.predict(X_test, iteration_range=(0, 100))
+def class1_1(X):
+    clf = safe_pickle(MODEL_1)
+    return clf.predict_proba(X), clf.predict(X)
 
 
-def class2_1(X_test):
-    clf = pickle.load(open("data/xgb_class2_1.pkl", "rb"))
-    return clf.predict_proba(X_test), clf.predict(X_test)
+def class2_1(X):
+    clf = safe_pickle(MODEL_2)
+    return clf.predict_proba(X), clf.predict(X)
 
 
 def VoteClass_1(treatment, Out, out_pred):
     X_test = treatment.iloc[:, 1:31] if len(treatment.columns) > 31 else treatment.iloc[:, 1:]
 
-    prob1, res1 = class1_1(X_test)
-    prob2, res2 = class2_1(X_test)
+    _, res1 = class1_1(X_test)
+    _, res2 = class2_1(X_test)
 
-    n_test = pd.DataFrame(res1)
-    dat2 = pd.concat([treatment.iloc[[0]], n_test], axis=1)
-
-    n_test2 = pd.DataFrame(res2)
-    dat2 = pd.concat([dat2, n_test2], axis=1)
+    dat2 = pd.concat([treatment.iloc[[0]], pd.DataFrame(res1)], axis=1)
+    dat2 = pd.concat([dat2, pd.DataFrame(res2)], axis=1)
 
     X_final = dat2.iloc[:, 1:]
-    clf = pickle.load(open("data/xgb_class3_1.pkl", "rb"))
 
-    y_pred = clf.predict(X_final, iteration_range=(0, 12))
-    pred_prob = clf.predict_proba(X_final, iteration_range=(0, 12))
+    clf = safe_pickle(MODEL_3)
+
+    y_pred = clf.predict(X_final)
+    pred_prob = clf.predict_proba(X_final)
 
     res_text = (
         f"atrauman({round(pred_prob[0][0], 3)}%)"
@@ -117,44 +135,55 @@ def VoteClass_1(treatment, Out, out_pred):
     )
 
     outcome = "Healing" if Out == 0 else "Non healing"
-    return f"The result is: {res_text} with the outcome of {outcome}({out_pred}%)"
+    return f"{res_text} | Outcome: {outcome} ({out_pred}%)"
+
 
 # ==============================
-# 3. STREAMLIT UI
+# STREAMLIT APP
 # ==============================
 
 st.set_page_config(page_title="Wound Healing AI", layout="wide")
 
-if 'auth' not in st.session_state:
+# session state
+if "auth" not in st.session_state:
     st.session_state.auth = False
-if 'post' not in st.session_state:
+if "post" not in st.session_state:
     st.session_state.post = -2
-if 'dat1' not in st.session_state:
-    st.session_state.dat1 = pd.DataFrame({'Blank': [float('nan')]})
-if 'store' not in st.session_state:
+if "dat1" not in st.session_state:
+    st.session_state.dat1 = pd.DataFrame()
+if "store" not in st.session_state:
     st.session_state.store = []
 
+
+# ==============================
 # LOGIN
+# ==============================
+
 if not st.session_state.auth:
     st.title("Admin Login")
+
     with st.form("login"):
         user = st.text_input("Username")
         pas = st.text_input("Password", type="password")
 
-        if st.form_submit_button("Enter"):
+        if st.form_submit_button("Login"):
             if user == "admin" and pas == "password":
                 st.session_state.auth = True
                 st.rerun()
             else:
                 st.error("Invalid credentials")
 
+
+# ==============================
 # MAIN APP
+# ==============================
+
 else:
     if st.session_state.post == -2:
         st.title("Data Input Mode")
 
         if st.button("Manual Input"):
-            names = load_csv_header()
+            names = safe_open_csv_header()
             st.session_state.store = replacement(names)
             st.session_state.post = 1
             st.rerun()
@@ -164,27 +193,27 @@ else:
         prompt = st.session_state.store[idx]
 
         if prompt.startswith(",,") or prompt.startswith("@:"):
-            clean_label = prompt[2:]
+            label = prompt[2:]
         elif prompt.startswith("#-") or prompt.startswith("#+"):
-            clean_label = prompt[3:]
+            label = prompt[3:]
         else:
-            clean_label = prompt
+            label = prompt
 
-        st.progress(idx / (len(st.session_state.store) - 1))
-        st.subheader(f"Step {idx}: {clean_label}")
+        st.progress(idx / max(len(st.session_state.store) - 1, 1))
+        st.subheader(f"Step {idx}: {label}")
 
         val = st.text_input("Enter Value", key=f"step_{idx}")
 
         if st.button("Continue"):
-            num = float(val) if val else float('nan')
+            num = float(val) if val else float("nan")
 
-            names = load_csv_header()
+            names = safe_open_csv_header()
 
             try:
                 offset = int(st.session_state.store[0])
                 col_name = names[idx - offset]
             except:
-                col_name = clean_label
+                col_name = label
 
             new_col = pd.DataFrame({col_name: [num]})
             st.session_state.dat1 = pd.concat([st.session_state.dat1, new_col], axis=1)
@@ -199,15 +228,15 @@ else:
         penalty, failed = verify_p1(ref, st.session_state.dat1)
 
         if failed:
-            st.warning(f"Warning: Data deviates from mean by {round(penalty, 2)}%")
+            st.warning(f"Warning: deviation detected ({round(penalty, 2)}%)")
 
         if st.button("Run XGBoost Analysis"):
-            clf_heal = pickle.load(open("data/xgb_class1_3.pkl", "rb"))
+            clf = safe_pickle(MODEL_4)
 
             X = st.session_state.dat1.iloc[:, 1:].fillna(0)
 
-            y_pred = clf_heal.predict(X.iloc[:, :21], iteration_range=(0, 12))
-            prob = clf_heal.predict_proba(X.iloc[:, :21], iteration_range=(0, 12))
+            y_pred = clf.predict(X.iloc[:, :21])
+            prob = clf.predict_proba(X.iloc[:, :21])
 
             report = VoteClass_1(
                 st.session_state.dat1,
@@ -219,5 +248,5 @@ else:
 
         if st.button("Reset"):
             st.session_state.post = -2
-            st.session_state.dat1 = pd.DataFrame({'Blank': [float('nan')]})
+            st.session_state.dat1 = pd.DataFrame()
             st.rerun()
