@@ -104,14 +104,27 @@ def verify_p1(data_array, dat1):
 # MODELS
 # ==============================
 
+def align_features(X, clf):
+    """Align a DataFrame's columns to match what a loaded XGBoost model expects."""
+    expected = clf.get_booster().feature_names
+    if expected is None:
+        return X.values  # model was trained on a numpy array — strip names
+    missing = set(expected) - set(X.columns)
+    for col in missing:
+        X[col] = 0
+    return X[expected]  # select & reorder to match training exactly
+
+
 def class1_1(X):
     clf = load_pickle("xgb_class1_1.pkl")
-    return clf.predict_proba(X), clf.predict(X)
+    X_aligned = align_features(X.copy(), clf)
+    return clf.predict_proba(X_aligned), clf.predict(X_aligned)
 
 
 def class2_1(X):
     clf = load_pickle("xgb_class2_1.pkl")
-    return clf.predict_proba(X), clf.predict(X)
+    X_aligned = align_features(X.copy(), clf)
+    return clf.predict_proba(X_aligned), clf.predict(X_aligned)
 
 
 def VoteClass_1(treatment, Out, out_pred):
@@ -126,9 +139,10 @@ def VoteClass_1(treatment, Out, out_pred):
     X_final = dat2.iloc[:, 1:]
 
     clf = load_pickle("xgb_class3_1.pkl")
+    X_final_aligned = align_features(X_final.copy(), clf)
 
-    y_pred = clf.predict(X_final)
-    pred_prob = clf.predict_proba(X_final)
+    y_pred = clf.predict(X_final_aligned)
+    pred_prob = clf.predict_proba(X_final_aligned)
 
     res_text = (
         f"atrauman({round(pred_prob[0][0], 3)}%)"
