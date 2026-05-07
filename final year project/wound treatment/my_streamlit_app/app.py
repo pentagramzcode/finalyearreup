@@ -236,8 +236,23 @@ else:
 
             X = st.session_state.dat1.iloc[:, 1:].fillna(0)
 
-            y_pred = clf.predict(X.iloc[:, :21])
-            prob = clf.predict_proba(X.iloc[:, :21])
+            # Align columns to exactly what the model was trained on
+            expected_features = clf.get_booster().feature_names
+            if expected_features is not None:
+                missing = set(expected_features) - set(X.columns)
+                extra   = set(X.columns) - set(expected_features)
+                if missing:
+                    st.warning(f"Columns missing from your data (defaulting to 0): {missing}")
+                    for col in missing:
+                        X[col] = 0
+                if extra:
+                    st.info(f"Extra columns in your data (ignored): {extra}")
+                X_input = X[expected_features]   # reorder to match training exactly
+            else:
+                X_input = X.iloc[:, :21].values  # model trained on array, strip names
+
+            y_pred = clf.predict(X_input)
+            prob   = clf.predict_proba(X_input)
 
             report = VoteClass_1(
                 st.session_state.dat1,
