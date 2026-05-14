@@ -6,9 +6,9 @@ import pickle
 import csv
 import os
 
-# ==============================
-# BASE PATH FIX (IMPORTANT)
-# ==============================
+
+# base path fix
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
@@ -16,9 +16,8 @@ def path(file_name):
     return os.path.join(DATA_DIR, file_name)
 
 
-# ==============================
-# SAFE LOADERS
-# ==============================
+
+# safe loaders
 
 def load_csv_header():
     file_path = path("model_for_com.csv")
@@ -41,9 +40,9 @@ def load_pickle(file_name):
     return pickle.load(open(file_path, "rb"))
 
 
-# ==============================
-# CORE LOGIC (UNCHANGED)
-# ==============================
+
+# core logic not changed
+
 
 def replacement(store_list):
     store = store_list.copy()
@@ -100,9 +99,9 @@ def verify_p1(data_array, dat1):
     return outside, (outside > 0.13)
 
 
-# ==============================
-# MODELS
-# ==============================
+
+# models
+
 
 def align_features(X, clf):
     """Align a DataFrame's columns to match what a loaded XGBoost model expects."""
@@ -154,9 +153,9 @@ def VoteClass_1(treatment, Out, out_pred):
     return f"{res_text} | Outcome: {outcome} ({out_pred}%)"
 
 
-# ==============================
-# STREAMLIT UI
-# ==============================
+
+# streamlit UI
+
 
 st.set_page_config(page_title="Wound Healing AI", layout="wide")
 
@@ -170,9 +169,9 @@ if "store" not in st.session_state:
     st.session_state.store = []
 
 
-# ==============================
-# LOGIN
-# ==============================
+
+# login
+
 
 if not st.session_state.auth:
     st.title("Admin Login")
@@ -189,9 +188,9 @@ if not st.session_state.auth:
                 st.error("Invalid credentials")
 
 
-# ==============================
-# APP FLOW
-# ==============================
+
+# app flow
+
 
 else:
     if st.session_state.post == -2:
